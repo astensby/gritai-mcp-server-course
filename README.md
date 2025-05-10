@@ -71,7 +71,7 @@ Full documentation here: https://modelcontextprotocol.io/introduction
     KNOWLEDGE_BASE_ID="YOUR_AWS_KB_ID"
     AWS_PROFILE="your-aws-sso-profile"
     AWS_REGION="your-aws-region"
-    # For rag_pipeline.py (used by 07_local_rag_server)
+    # For rag_pipeline.py (used by 06_local_rag_server)
     # PGVECTOR_DB_NAME="vectordb"
     # PGVECTOR_DB_USER="your_db_user"
     # PGVECTOR_DB_PASSWORD="your_db_password"
@@ -86,7 +86,7 @@ aws sso login --profile <your-profile-name>
 aws configure sso is a one‑time wizard; afterwards only aws sso login is needed to renew the token.
 
 
-7. **Local Vector Database** Example 07_local_rag_server illustrates an MCP server running on top of a local Postgresql server with PGVECTOR. Details on the server and RAG pipeline to set up this server is found in the separate RAG project.
+7. **Local Vector Database** Example 06_local_rag_server illustrates an MCP server running on top of a local Postgresql server with PGVECTOR. Details on the server and RAG pipeline to set up this server is found in the separate RAG project.
 
 ## Running an Example Server
 
@@ -99,9 +99,9 @@ mcp dev examples/01_motivational_quotes/01_motivational_quotes_server.py
 This will allow you to open the MCP Inspector at http://127.0.0.1:6274 🚀
 
 
-## Integrating with Claude
+## Integrating with Claude (or other MCP Host applications)
 
-To use these example servers with an LLM like Claude, you'll need to add a configuration to your LLM's tool settings. The `command` will typically be `uv`, and the `args` will point to the `uv run` command or `mcp run` for the specific server script.
+To use these example servers with an AI assistant like Claude or Cursor, that implements the MCP Client, you'll need to add a configuration to your LLM's tool settings. The `command` will typically be `uv`, and the `args` will point to the `uv run` command or `mcp run` for the specific server script.
 
 **Important:** In the Claude configurations below, you **MUST** replace `"/path/to/your/project/gritai-mcp-server-course"` with the actual absolute path to the `gritai-mcp-server-course` directory on your system where `uv` will be executed.
 
