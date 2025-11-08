@@ -11,3 +11,9 @@ wheels/
 .env
 
 uv.lock
+
+# Exclude .DS_Store from public project
+.DS_Store
+
+# Exclude Claude.md from public project
+CLAUDE.md
