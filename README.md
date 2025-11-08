@@ -65,18 +65,27 @@ Full documentation here: https://modelcontextprotocol.io/introduction
     ```bash
     cd /path/to/your/project/gritai-mcp-server-course
     ```
-5.  **Environment Variables:** Some servers require environment variables (e.g., API keys, AWS profiles). These are typically loaded from a `.env` file in the root of this project or directly in your environment. Create a `.env` file if needed. For example:
+5.  **Environment Variables:** Some servers require environment variables (e.g., API keys, AWS profiles, Azure credentials). These are typically loaded from a `.env` file in the root of this project or directly in your environment. Create a `.env` file if needed. For example:
     ```env
+    # Example 4: API Key Auth
     ALPHAVANTAGE_API_KEY="YOUR_ALPHAVANTAGE_KEY"
+
+    # Examples 5 & 6: AWS Services
     KNOWLEDGE_BASE_ID="YOUR_AWS_KB_ID"
     AWS_PROFILE="your-aws-sso-profile"
     AWS_REGION="your-aws-region"
-    # For rag_pipeline.py (used by 06_local_rag_server)
+
+    # Example 6: Local RAG with PostgreSQL
     # PGVECTOR_DB_NAME="vectordb"
     # PGVECTOR_DB_USER="your_db_user"
     # PGVECTOR_DB_PASSWORD="your_db_password"
     # PGVECTOR_DB_HOST="localhost"
     # PGVECTOR_DB_PORT="5432"
+
+    # Example 7: Azure AI Search
+    AZURE_SEARCH_ENDPOINT="https://your-service.search.windows.net"
+    AZURE_SEARCH_INDEX="your-index-name"
+    AZURE_SEARCH_KEY="your-api-key"  # Optional - omit to use DefaultAzureCredential
     ```
 
 6. **AWS configuration:** Some of the servers make use of AWS services, like Bedrock Knowledge Bases or Embeddings. In order to use these you will need an AWS account, and you will need to use SSO to connect to AWS. The code examples uses the boto3 client.
@@ -311,6 +320,51 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
        
     }
     ```
+
+### 7. Azure AI Search Server
+
+-   **Directory:** `examples/07_azure_ai_search/`
+-   **Server File:** `07_azure_ai_search_server.py`
+-   **Description:** Demonstrates integration with Azure AI Search service. Showcases **dual authentication** support: API Key (simplest) or DefaultAzureCredential (most secure for production). Performs simple text search with configurable result count.
+-   **Dependencies:** `azure-search-documents`, `azure-identity`
+-   **Environment Variables:**
+    -   `AZURE_SEARCH_ENDPOINT` (required) - Your Azure Search service endpoint
+    -   `AZURE_SEARCH_INDEX` (required) - Name of the search index
+    -   `AZURE_SEARCH_KEY` (optional) - API key for authentication. If not provided, uses DefaultAzureCredential (Azure CLI, Managed Identity, etc.)
+-   **Claude Config (with API Key):**
+    ```json
+    "azure-ai-search": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/your/project/gritai-mcp-server-course",
+        "run",
+        "examples/07_azure_ai_search/07_azure_ai_search_server.py"
+      ],
+      "env": {
+        "AZURE_SEARCH_ENDPOINT": "https://your-service.search.windows.net",
+        "AZURE_SEARCH_INDEX": "your-index-name",
+        "AZURE_SEARCH_KEY": "<your_api_key>"
+      }
+    }
+    ```
+-   **Claude Config (with DefaultAzureCredential):**
+    ```json
+    "azure-ai-search": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/your/project/gritai-mcp-server-course",
+        "run",
+        "examples/07_azure_ai_search/07_azure_ai_search_server.py"
+      ],
+      "env": {
+        "AZURE_SEARCH_ENDPOINT": "https://your-service.search.windows.net",
+        "AZURE_SEARCH_INDEX": "your-index-name"
+      }
+    }
+    ```
+    **Note:** When using DefaultAzureCredential, ensure you've run `az login` before starting Claude Desktop.
 
 ---
 
