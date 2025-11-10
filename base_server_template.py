@@ -8,4 +8,4 @@ def hello() -> str:
     return "Hello awesome overlord!"
 
 if __name__ == "__main__":
-    mcp.run(transport='stdio') 
+    mcp.run(transport='stdio')

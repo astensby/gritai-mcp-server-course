@@ -1,7 +1,7 @@
 import json
 import random
 import os
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Create an MCP server
 mcp = FastMCP("motivational-quotes")
