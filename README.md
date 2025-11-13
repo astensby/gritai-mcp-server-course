@@ -65,7 +65,15 @@ Full documentation here: https://modelcontextprotocol.io/introduction
     ```bash
     cd /path/to/your/project/gritai-mcp-server-course
     ```
-5.  **Environment Variables:** Some servers require environment variables (e.g., API keys, AWS profiles, Azure credentials). These are typically loaded from a `.env` file in the root of this project or directly in your environment. Create a `.env` file if needed. For example:
+5.  **Environment Variables:** Some servers require environment variables (e.g., API keys, AWS profiles, Azure credentials). These are typically loaded from a `.env` file in the root of this project or directly in your environment. 
+
+    **Template:** See `env.examples` for a complete template of all environment variables used across examples. Copy it to `.env` and fill in your actual values:
+    ```bash
+    cp env.examples .env
+    # Then edit .env with your actual values
+    ```
+
+    For quick reference, here are the main environment variables:
     ```env
     # Example 4: API Key Auth
     ALPHAVANTAGE_API_KEY="YOUR_ALPHAVANTAGE_KEY"
@@ -86,6 +94,16 @@ Full documentation here: https://modelcontextprotocol.io/introduction
     AZURE_SEARCH_ENDPOINT="https://your-service.search.windows.net"
     AZURE_SEARCH_INDEX="your-index-name"
     AZURE_SEARCH_KEY="your-api-key"  # Optional - omit to use DefaultAzureCredential
+
+    # Example 8: Azure OAuth Remote Server
+    ENABLE_OIDC="1"  # Set to "0" to disable OAuth
+    AZURE_TENANT_ID="your-azure-tenant-id"
+    OIDC_CLIENT_ID="your-azure-app-client-id"
+    OIDC_CLIENT_SECRET="your-azure-app-client-secret"
+    PUBLIC_BASE_URL="https://your-app-url.com"  # Must match Azure App registration
+    OIDC_REDIRECT_PATH="/auth/callback"  # Optional, defaults to /auth/callback
+    OIDC_ALLOWED_REDIRECT_URIS="http://localhost:*/*,http://127.0.0.1:*/*"  # Optional
+    OIDC_REQUIRED_SCOPES="User.Read email openid profile offline_access"  # Optional
     ```
 
 6. **AWS configuration:** Some of the servers make use of AWS services, like Bedrock Knowledge Bases or Embeddings. In order to use these you will need an AWS account, and you will need to use SSO to connect to AWS. The code examples uses the boto3 client.
@@ -107,6 +125,29 @@ mcp dev examples/01_motivational_quotes/01_motivational_quotes_server.py
 
 This will allow you to open the MCP Inspector at http://127.0.0.1:6274 🚀
 
+## MCP Client Examples
+
+This repository includes example MCP clients demonstrating how to connect to MCP servers over HTTP.
+
+### `simple_client.py`
+
+A basic FastMCP client that connects to a local HTTP MCP server. This example demonstrates:
+- Connecting to an MCP server via HTTP
+- Listing available tools, resources, and prompts
+- Calling tools on the remote server
+
+**Usage:**
+```bash
+# First, ensure your MCP server is running (e.g., on localhost:8000)
+# Then run the client:
+uv run simple_client.py
+```
+
+**File:** `simple_client.py`
+- **Description:** Connects to `http://localhost:8000/mcp` and demonstrates basic client operations
+- **Dependencies:** `fastmcp`
+
+**Note:** For OAuth-authenticated servers, use `Client("http://localhost:8000/mcp", auth="oauth")`. See `simple_client_remote01.py` and `simple_client_remote02.py` for examples connecting to remote OAuth-protected servers.
 
 ## Integrating with Claude (or other MCP Host applications)
 
@@ -365,6 +406,45 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     }
     ```
     **Note:** When using DefaultAzureCredential, ensure you've run `az login` before starting Claude Desktop.
+
+### 8. Azure OAuth Remote Server
+
+-   **Directory:** `examples/08_azure_auth_remote_server/`
+-   **Server File:** `app.py`
+-   **Data File:** `motivational_quotes.json`
+-   **Description:** An HTTP-based MCP server with Azure Entra ID (Azure AD) OAuth authentication. This server runs as an ASGI application suitable for deployment with Gunicorn/Uvicorn (e.g., on Azure App Service). Demonstrates OAuth-protected tools, user authentication, and remote HTTP server patterns. Includes tools for getting authenticated user info, random quotes, searching quotes, and fetching specific quotes.
+-   **Dependencies:** `fastmcp`, `python-dotenv`, `starlette`
+-   **Environment Variables:**
+    -   `ENABLE_OIDC` (optional, default: "1") - Set to "0" to disable OAuth
+    -   `AZURE_TENANT_ID` (required if OAuth enabled) - Your Azure Tenant ID
+    -   `OIDC_CLIENT_ID` (required if OAuth enabled) - Your Azure App Registration Client ID
+    -   `OIDC_CLIENT_SECRET` (required if OAuth enabled) - Your Azure App Registration Client Secret
+    -   `PUBLIC_BASE_URL` (required if OAuth enabled) - Public URL of your deployed server (must match Azure App registration)
+    -   `OIDC_REDIRECT_PATH` (optional, default: "/auth/callback") - OAuth callback path
+    -   `OIDC_ALLOWED_REDIRECT_URIS` (optional) - Comma-separated list of allowed redirect URIs
+    -   `OIDC_REQUIRED_SCOPES` (optional) - Space-separated list of required OAuth scopes
+-   **Running the Server:**
+    ```bash
+    # Using Uvicorn (development)
+    # From project root:
+    uvicorn examples.08_azure_auth_remote_server.app:app --host 0.0.0.0 --port 8000
+    
+    # Or using Python module path:
+    cd examples/08_azure_auth_remote_server
+    uvicorn app:app --host 0.0.0.0 --port 8000
+
+    # Using Gunicorn (production)
+    gunicorn examples.08_azure_auth_remote_server.app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    ```
+-   **Client Configuration:** This server exposes an HTTP endpoint at `/mcp`. Clients should connect to `https://your-server-url.com/mcp` with OAuth authentication. See `simple_client.py` and `simple_client_remote02.py` for client examples.
+-   **Azure App Registration Setup:**
+    1. Create an Azure App Registration in Azure Portal
+    2. Configure redirect URIs: `https://your-app-url.com/auth/callback`
+    3. Set API permissions (scopes): `User.Read`, `email`, `openid`, `profile`, `offline_access`
+    4. Create a client secret and note the Client ID, Tenant ID, and Secret
+    5. Update your `.env` file with these values
+
+**Note:** This server is designed for HTTP deployment, not stdio-based MCP clients like Claude Desktop. For stdio-based integration, use the other example servers. This example is ideal for web-based MCP clients or API integrations.
 
 ---
 
