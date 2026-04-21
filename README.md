@@ -446,6 +446,44 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
 
 **Note:** This server is designed for HTTP deployment, not stdio-based MCP clients like Claude Desktop. For stdio-based integration, use the other example servers. This example is ideal for web-based MCP clients or API integrations.
 
+### 9. FastMCP UI Apps (Prefab)
+
+-   **Directory:** `examples/09_fastmcp_uiapp/`
+-   **Description:** Four servers exploring FastMCP 3.0's UI App capabilities using [Prefab UI](https://gofastmcp.com/apps/prefab). All four share a common "10 years of random population data" theme and progressively demonstrate the UI App surface — from a plain tool, to a static chart, to an interactive form-driven app, to fully generative UI.
+-   **Dependencies:** `fastmcp>=3.0.0`, `prefab-ui` (install via `uv add "fastmcp>=3.0" prefab-ui`)
+-   **Servers:**
+    -   **`09_population_server.py`** — Plain FastMCP 3 tool returning 10 years of randomized population data. Baseline for comparison with the UI variants.
+    -   **`09_population_uiapp_server.py`** — Same data, rendered as a static Prefab `BarChart` via `@mcp.tool(app=True)`. Returns a `ToolResult` so the model also receives a text summary alongside the UI.
+    -   **`09_population_fastmcpapp_server.py`** — Interactive app built with `FastMCPApp`. Uses the two-decorator pattern: `@app.ui()` exposes an entry point to the model, `@app.tool()` exposes a backend `regenerate_population` tool that the UI calls from a form submission. State is managed reactively with `Rx` and `SetState`. Demonstrates [Interactive Apps](https://gofastmcp.com/apps/interactive-apps).
+    -   **`09_population_generative_server.py`** — [Generative UI](https://gofastmcp.com/apps/generative). Adds `mcp.add_provider(GenerativeUI())` which registers `generate_prefab_ui` and `search_prefab_components` tools, letting the LLM discover components and write Python code that renders in a Pyodide sandbox. Also exposes the raw data tool, so the model can fetch data and render any UI it chooses.
+-   **Claude Config (example, repeat for each server):**
+    ```json
+    "population-uiapp": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/your/project/gritai-mcp-server-course",
+        "run",
+        "examples/09_fastmcp_uiapp/09_population_uiapp_server.py"
+      ]
+    }
+    ```
+-   **Testing locally — browser preview:**
+    FastMCP 3 ships a built-in dev UI that renders Prefab views without needing an LLM host:
+    ```bash
+    fastmcp dev apps examples/09_fastmcp_uiapp/09_population_uiapp_server.py
+    ```
+    Opens a tool picker at `http://localhost:8080` where you can invoke the tool directly and see the rendered UI. Works for all four servers; for `09_population_generative_server.py` you'll need to paste Python code into the `code` argument yourself (useful for verifying the sandbox + renderer, but not the full LLM-driven flow).
+
+-   **Testing with Claude Desktop:**
+    Claude Desktop is the easiest way to exercise the full flow (LLM fetches data, optionally searches components, generates and invokes a Prefab UI). Prefer the `uv --directory` config pattern shown above over `fastmcp install claude-desktop` — the installer defaults to `uv run --with fastmcp ...` which creates an ephemeral env without `prefab-ui`, so any UI App server will crash at import with `ModuleNotFoundError: No module named 'prefab_ui'`. Using `--directory` resolves against this project's `pyproject.toml` / `uv.lock` where `prefab-ui` is already a dependency.
+
+-   **Notes:**
+    -   Requires FastMCP 3.x. Earlier 2.x releases do not support `@mcp.tool(app=True)`, `FastMCPApp`, or `GenerativeUI`.
+    -   The generative server needs **Deno** on `PATH` for server-side Pyodide validation (auto-installed on first use). The sandbox only includes the Python standard library and Prefab components — no NumPy/pandas/requests.
+    -   Host must support MCP UI resources for rendering (e.g. Claude Desktop with apps preview enabled).
+    -   `FastMCPApp` form submissions do not auto-forward input values to backend tools. Wire them explicitly: `CallTool(fn, arguments={"country": Rx("form_country")})`.
+
 ---
 
 This `README.md` should provide a good overview of your project and how to use the examples. Remember to replace `/path/to/your/project/gritai-mcp-server-course` in the Claude configurations with the actual path on your system.
