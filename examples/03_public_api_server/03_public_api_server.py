@@ -5,7 +5,7 @@ mcp = FastMCP("police-incidents", dependencies=["requests"])
 
 def get_latest_incidents() -> str:
     """Fetch the latest incidents from the Politiet API"""
-    url = 'https://api.politiet.no/politiloggen/v1/messages'
+    url = 'https://api.politiloggen.politiet.no/messages'
     headers = {'accept': 'text/plain'}
     try:
         response = requests.get(url, headers=headers)
@@ -17,7 +17,7 @@ def get_latest_incidents() -> str:
 
 def get_incidents_by_municipality(municipality: str) -> str:
     """Fetch incidents for a specific municipality from the Politiet API"""
-    url = 'https://api.politiet.no/politiloggen/v1/messages'
+    url = 'https://api.politiloggen.politiet.no/messages'
     headers = {'accept': 'text/plain'}
     params = {'Municipalities': municipality}
     try:

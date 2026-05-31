@@ -23,7 +23,7 @@ When using Cursor to develop MCP servers and clients, it is highly recommended t
     ```text
       Help me implement the get_latest_incidents() function that will make use of the open external API that I can access here:
       curl -X 'GET' \
-      'https://api.politiet.no/politiloggen/v1/messages' \
+      'https://api.politiloggen.politiet.no/messages' \
       -H 'accept: text/plain'
     ```
 
