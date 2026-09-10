@@ -10,10 +10,12 @@ wheels/
 .venv
 .env
 
-uv.lock
 
 # Exclude .DS_Store from public project
 .DS_Store
 
 # Exclude Claude.md from public project
 CLAUDE.md
+# Local Cursor MCP config - machine-specific absolute paths.
+# Copy .cursor/mcp.json.example to .cursor/mcp.json and edit the path.
+.cursor/mcp.json

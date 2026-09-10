@@ -1,12 +1,15 @@
 import random
-from mcp.server.fastmcp import FastMCP
+
+from fastmcp import FastMCP
 
 mcp = FastMCP("basic-finance-server")
+
 
 @mcp.resource("stock://{symbol}/earnings")
 def earnings(symbol: str) -> str:
     """Get the earnings for a stock"""
     return f"The earnings for {symbol} are {random.randint(1000000, 1000000000)}"
+
 
 @mcp.resource("stock://earnings")
 def latest_NVIDIA_earnings() -> str:
@@ -28,4 +31,4 @@ def calculate_cagr(symbol: str, years: int, start_price: float, end_price: float
 
 
 if __name__ == "__main__":
-    mcp.run(transport='stdio') 
+    mcp.run(transport="stdio")

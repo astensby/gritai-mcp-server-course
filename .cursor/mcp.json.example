@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "police-incidents": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/gritai-mcp-server-course",
+        "run",
+        "examples/03_public_api_server/03_public_api_server.py"
+      ]
+    }
+  }
+}

@@ -1,6 +1,8 @@
 # GritAI MCP Server Examples
 
-This project provides a collection of example MCP (Model Context Protocol) servers built with the Python SDK and specifically FastMCP, designed to be educational and showcase different functionalities. All examples are based on a simple starter server, `base_server_template.py`.
+This project provides a collection of example MCP (Model Context Protocol) servers built with **FastMCP 4**, designed to be educational and showcase different functionalities. All examples are based on a simple starter server, `base_server_template.py`.
+
+Every server targets the **2026-07-28** protocol revision. FastMCP 4 serves both protocol eras from the same deployment and negotiates per connection, so these servers also work with hosts that still speak the older handshake protocol.
 
 ## Developing with Cursor
 
@@ -9,8 +11,12 @@ When using Cursor to develop MCP servers and clients, it is highly recommended t
 **Add Documentation to Cursor:**
   - It's recommended to add the MCP documentation to Cursor's knowledge base:
     - Add the MCP documentation (specifically for building with LLMs): https://modelcontextprotocol.io/llms-full.txt
-    - Add the Python SDK documentation to assist with server development and understanding the SDK: https://github.com/modelcontextprotocol/python-sdk/blob/main/README.md
+    - Add the FastMCP documentation, which is what these examples are built on: https://gofastmcp.com/llms.txt
+    - Add the current protocol revision so the model does not generate handshake-era code: https://modelcontextprotocol.io/specification/2026-07-28/changelog
 
+
+**Wiring a server into Cursor:**
+  - Copy `.cursor/mcp.json.example` to `.cursor/mcp.json` and replace `/absolute/path/to/gritai-mcp-server-course` with the path on your machine. The real `.cursor/mcp.json` is gitignored, since the path is machine-specific.
 
 **Prompting:**
   - Prompt Cursor to create your MCP server
@@ -39,9 +45,30 @@ If you’re pulling data from APIs or databases, consider making your tools asyn
 
 ## Project Structure
 
-- **`base_server_template.py`**: A minimal MCP server that acts as a template for creating new servers. It includes a basic "greeting" tool.
+- **`base_server_template.py`**: A minimal MCP server that acts as a template for creating new servers. It includes a basic "greeting" tool (stdio transport).
+- **`base_server_template_http.py`**: The same server over HTTP. Previously this repo also carried `base_server_template_http_fastmcp2.py`; the two differed only by import, and now that everything is FastMCP 4 there is one HTTP template.
 - **`examples/`**: This directory contains various example MCP servers, each in its own subdirectory.
     - Each example subdirectory (e.g., `01_motivational_quotes/`) contains the server script (e.g., `01_motivational_quotes_server.py`) and any related files (like data files or utility scripts).
+
+## What changed in the 2026-07-28 protocol revision
+
+This course was updated for the MCP specification revision released on 28 July 2026. It is not backward compatible, and it is worth understanding before reading the examples.
+
+| Change | What it means in practice |
+| --- | --- |
+| **No sessions** | Protocol-level sessions and the `Mcp-Session-Id` header are gone from Streamable HTTP. A remote server can sit behind an ordinary round-robin load balancer - no session affinity. State that must survive across calls is passed as server-minted handles in ordinary tool arguments. |
+| **No handshake** | `initialize` / `notifications/initialized` are gone. Every request carries its protocol version and client capabilities in `_meta`. Servers must implement `server/discover`, which clients may call up front to select a version. |
+| **`ping` removed** | Along with `logging/setLevel` and `notifications/roots/list_changed`. This is why `simple_client.py` no longer calls `client.ping()`. |
+| **Sampling, Roots and Logging deprecated** | Still functional, but new servers should not adopt them. Pass file paths as tool arguments instead of Roots, call an LLM provider directly instead of Sampling, and log to stderr or OpenTelemetry instead of Logging. |
+| **Multi Round-Trip Requests (MRTR)** | Replaces server-initiated requests. Instead of the server calling back to the client, it returns an `InputRequiredResult` and the client retries the original request with `inputResponses`. Every result now carries a `resultType` of `"complete"` or `"input_required"`. |
+| **Cacheable lists** | `tools/list`, `prompts/list`, `resources/list` and `resources/read` now carry `ttlMs` and `cacheScope`, so clients can cache them. FastMCP exposes these as the `cache_ttl` and `cache_scope` arguments on `FastMCP()`. |
+| **HTTP+SSE deprecated** | Formally deprecated under the new feature-lifecycle policy, with a minimum twelve-month removal window. Use `transport="http"`. |
+| **DCR deprecated** | OAuth Dynamic Client Registration gives way to Client ID Metadata Documents. See example 8 - FastMCP 4 enables CIMD by default. |
+| **Extensions** | Optional capabilities now live outside the core protocol. Background tasks moved out to the `io.modelcontextprotocol/tasks` extension (`uv add "fastmcp[tasks]"` plus `mcp.add_extension(TasksExtension())`). |
+
+Full changelog: https://modelcontextprotocol.io/specification/2026-07-28/changelog
+
+**What this means for these examples:** FastMCP 4 handles both eras for you, so none of the servers here need era-specific code. The client is where the difference shows: `Client(url, mode="auto")` (the default) speaks the modern protocol, and `mode="legacy"` forces the handshake era.
 
 ## General Setup
 
@@ -53,12 +80,14 @@ If you’re pulling data from APIs or databases, consider making your tools asyn
     ```    
 Make sure uv is in your system PATH, or replace "command": "uv" with the full path to the uv executable.
 
-3.  **Install MCP CLI:**
+3.  **Install the dependencies:**
     ```bash
-    uv add "mcp[cli]"
+    uv sync
     ```
+    This installs the exact versions in the committed `uv.lock` (FastMCP 4.0.3, MCP SDK 2.2.0, Prefab 0.20.2) - everyone in the room gets the same environment. Do not use `uv add` for setup; it will resolve newer versions than the course was tested against.
 
-Full documentation here: https://modelcontextprotocol.io/introduction
+Protocol documentation: https://modelcontextprotocol.io/introduction
+FastMCP documentation: https://gofastmcp.com
 
 
 4.  **Navigate to the project directory:**
@@ -117,13 +146,27 @@ aws configure sso is a one‑time wizard; afterwards only aws sso login is neede
 
 ## Running an Example Server
 
-You can run any example server with the MCP Inspector directly using `mcp dev <servername.py>` from the `gritai-mcp-server-course` directory. For example, to run the motivational quotes server:
+You can run any example server with the MCP Inspector directly using `fastmcp dev <servername.py>` from the `gritai-mcp-server-course` directory. For example, to run the motivational quotes server:
 
 ```bash
-mcp dev examples/01_motivational_quotes/01_motivational_quotes_server.py
+fastmcp dev examples/01_motivational_quotes/01_motivational_quotes_server.py
 ```
 
+(The old `mcp dev` command came from the `mcp[cli]` package. This course now uses the `fastmcp` CLI throughout - `fastmcp dev`, `fastmcp run`, `fastmcp inspect`, `fastmcp install`.)
+
 This will allow you to open the MCP Inspector at http://127.0.0.1:6274 🚀
+
+## Verifying every server at once
+
+```bash
+uv run tests/smoke_test.py
+```
+
+Starts each server for real and drives it through an MCP client: lists tools, resources and prompts, calls a tool where no third-party credential is needed, checks the HTTP transports and the `/health` route, and runs the full elicitation round trip from example 10. Exit code is 0 when everything passes.
+
+Servers needing live credentials (04 Alpha Vantage, 05 Bedrock, 06 pgvector, 07 Azure Search) are only verified up to the point where the credential is needed - they must start and register their tools. Their retrieval path is yours to test against real credentials.
+
+Run this after any dependency bump; it is what catches a protocol or FastMCP change breaking an example.
 
 ## MCP Client Examples
 
@@ -138,16 +181,36 @@ A basic FastMCP client that connects to a local HTTP MCP server. This example de
 
 **Usage:**
 ```bash
-# First, ensure your MCP server is running (e.g., on localhost:8000)
-# Then run the client:
+# Terminal 1 - start any HTTP server:
+uv run base_server_template_http.py
+
+# Terminal 2 - run the client:
 uv run simple_client.py
+
+# Or point it somewhere else:
+MCP_SERVER_URL="https://your-server.example.com/mcp" uv run simple_client.py
 ```
 
 **File:** `simple_client.py`
-- **Description:** Connects to `http://localhost:8000/mcp` and demonstrates basic client operations
+- **Description:** Connects to `MCP_SERVER_URL` (default `http://127.0.0.1:8000/mcp/`) and demonstrates basic client operations
 - **Dependencies:** `fastmcp`
 
-**Note:** For OAuth-authenticated servers, use `Client("http://localhost:8000/mcp", auth="oauth")`. See `simple_client_remote01.py` and `simple_client_remote02.py` for examples connecting to remote OAuth-protected servers.
+**Note:** For OAuth-authenticated servers, pass `auth="oauth"` - the client does this automatically for `https://` URLs.
+
+### Remote Client (`simple_client_remote.py`)
+
+The same client pointed at a deployed, OAuth-protected server. On first run FastMCP opens a browser for the OAuth flow and caches the token; later runs are silent. Point it at a server you control - example 8 is one you can deploy.
+
+```bash
+export MCP_SERVER_URL="https://<your-server>.fastmcp.app/mcp"
+uv run simple_client_remote.py
+
+# Call a tool rather than just listing them:
+MCP_TOOL=random_quote uv run simple_client_remote.py
+MCP_TOOL=echo_tool MCP_TOOL_ARGS='{"text": "Hello, world!"}' uv run simple_client_remote.py
+```
+
+**There is no `client.ping()` any more.** `ping` was removed from the protocol in the 2026-07-28 revision along with sessions and the `initialize` handshake. Calling it on a modern connection raises `MCPError: Method not found`; it only works if you force `Client(url, mode="legacy")`. Use `list_tools()` as your connectivity check.
 
 ## Integrating with Claude (or other MCP Host applications)
 
@@ -158,12 +221,12 @@ To use these example servers with an AI assistant like Claude or Cursor, that im
 On Windows, remember to use double backslash in your paths.
 
 
-Alternatively, you can use the `mcp install` function - which will generate the config and add it to Claude for you. 
+Alternatively, you can use `fastmcp install` - which will generate the config and add it to Claude for you.
 ```bash
-mcp install examples/01_motivational_quotes/01_motivational_quotes_server.py
+fastmcp install claude-desktop examples/01_motivational_quotes/01_motivational_quotes_server.py
 ```
 
-If you encounter issues with running your servers in Claude, you might try changing from the uv run approach to the mcp run approach, in particular if you get errors because of missing dependencies.
+If you encounter issues with running your servers in Claude, try the `uv --directory` form below. It resolves against this project's `pyproject.toml` and `uv.lock`, so the server gets the dependencies it was tested with - the installer's ephemeral environment does not (this bites hardest on example 9, which needs `prefab-ui`).
 
 As an example (applicable to all the below server examples):
 
@@ -173,12 +236,12 @@ As an example (applicable to all the below server examples):
       "args": [
         "run",
         "--with",
-        "mcp[cli]",
+        "fastmcp",
         "--with",
         "psycopg2-binary",
         "--with",
         "boto3",
-        "mcp",
+        "fastmcp",
         "run",
         "/path/to/your/project/gritai-mcp-server-course/examples/06_local_rag/06_local_rag_server.py"
       ],
@@ -195,6 +258,8 @@ As an example (applicable to all the below server examples):
 ### `base_server_template.py`
 
 A very basic server with a `hello` tool. Serves as a boiler plate for any MCP server.
+
+`base_server_template_http.py` is the same server over HTTP. Transport names for `mcp.run()` are `"stdio"`, `"http"` (Streamable HTTP) and `"sse"`. Use `"http"` for anything remote - `"sse"` is formally deprecated in the 2026-07-28 revision and scheduled for removal. Note that `host` and `port` are arguments to `run()`, not to the `FastMCP()` constructor.
 
 -   **File:** `base_server_template.py`
 -   **Description:** Greets the user and demonstrates a minimal tool setup.
@@ -304,7 +369,7 @@ This server demonstrates MCP Tools, Prompts and Resources.
 -   **Server File:** `05_aws_knowledge_base_server.py`
 -   **Description:** Searches an AWS Bedrock knowledge base. Requires AWS credentials (e.g., via an AWS profile specified in `AWS_PROFILE`) and `KNOWLEDGE_BASE_ID` and `AWS_REGION` environment variables.
 -   **Dependencies:** `boto3`, `python-dotenv`
--   **Environment Variables:** `KNOWLEDGE_BASE_ID`, `AWS_REGION`, `AWS_PROFILE` (used internally by `boto3`)
+-   **Environment Variables:** `KNOWLEDGE_BASE_ID`, `AWS_REGION`, `AWS_PROFILE` (optional - when set, that SSO profile is used; when unset, boto3's default credential chain applies)
 -   **Claude Config:**
     ```json
     "aws-knowledgebase-test": {
@@ -332,10 +397,10 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
 
 -   **Directory:** `examples/06_local_rag/`
 -   **Server File:** `06_local_rag_server.py`
--   **Utility Script:** `rag_pipeline.py`
--   **Description:** A server that performs Retrieval Augmented Generation (RAG) by searching a local knowledge base (PostgreSQL with pgvector) using AWS Bedrock for embeddings. The `rag_pipeline.py` script contains the core RAG logic.
+-   **Utility Script:** `rag_retrieval_tools.py`
+-   **Description:** A server that performs Retrieval Augmented Generation (RAG) by searching a local knowledge base (PostgreSQL with pgvector) using AWS Bedrock for embeddings. The `rag_retrieval_tools.py` script contains the core RAG logic.
 -   **Dependencies:** `psycopg2-binary`, `boto3`
--   **Environment Variables (for `rag_pipeline.py`):**
+-   **Environment Variables (for `rag_retrieval_tools.py`):**
     -   `AWS_REGION`, `AWS_PROFILE` (for Bedrock embeddings)
     -   `PGVECTOR_DB_NAME`, `PGVECTOR_DB_USER`, `PGVECTOR_DB_PASSWORD`, `PGVECTOR_DB_HOST`, `PGVECTOR_DB_PORT` (for database connection)
 -   **Claude Config:**
@@ -436,7 +501,7 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     # Using Gunicorn (production)
     gunicorn examples.08_azure_auth_remote_server.app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
     ```
--   **Client Configuration:** This server exposes an HTTP endpoint at `/mcp`. Clients should connect to `https://your-server-url.com/mcp` with OAuth authentication. See `simple_client.py` and `simple_client_remote02.py` for client examples.
+-   **Client Configuration:** This server exposes an HTTP endpoint at `/mcp`. Clients should connect to `https://your-server-url.com/mcp` with OAuth authentication. See `simple_client.py` and `simple_client_remote.py` for client examples.
 -   **Azure App Registration Setup:**
     1. Create an Azure App Registration in Azure Portal
     2. Configure redirect URIs: `https://your-app-url.com/auth/callback`
@@ -449,10 +514,10 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
 ### 9. FastMCP UI Apps (Prefab)
 
 -   **Directory:** `examples/09_fastmcp_uiapp/`
--   **Description:** Four servers exploring FastMCP 3.0's UI App capabilities using [Prefab UI](https://gofastmcp.com/apps/prefab). All four share a common "10 years of random population data" theme and progressively demonstrate the UI App surface — from a plain tool, to a static chart, to an interactive form-driven app, to fully generative UI.
--   **Dependencies:** `fastmcp>=3.0.0`, `prefab-ui` (install via `uv add "fastmcp>=3.0" prefab-ui`)
+-   **Description:** Four servers exploring FastMCP 4's UI App capabilities using [Prefab UI](https://gofastmcp.com/apps/prefab). All four share a common "10 years of random population data" theme and progressively demonstrate the UI App surface — from a plain tool, to a static chart, to an interactive form-driven app, to fully generative UI.
+-   **Dependencies:** `fastmcp>=4.0.3`, `prefab-ui` (already in `pyproject.toml`; just run `uv sync`)
 -   **Servers:**
-    -   **`09_population_server.py`** — Plain FastMCP 3 tool returning 10 years of randomized population data. Baseline for comparison with the UI variants.
+    -   **`09_population_server.py`** — Plain FastMCP tool returning 10 years of randomized population data. Baseline for comparison with the UI variants.
     -   **`09_population_uiapp_server.py`** — Same data, rendered as a static Prefab `BarChart` via `@mcp.tool(app=True)`. Returns a `ToolResult` so the model also receives a text summary alongside the UI.
     -   **`09_population_fastmcpapp_server.py`** — Interactive app built with `FastMCPApp`. Uses the two-decorator pattern: `@app.ui()` exposes an entry point to the model, `@app.tool()` exposes a backend `regenerate_population` tool that the UI calls from a form submission. State is managed reactively with `Rx` and `SetState`. Demonstrates [Interactive Apps](https://gofastmcp.com/apps/interactive-apps).
     -   **`09_population_generative_server.py`** — [Generative UI](https://gofastmcp.com/apps/generative). Adds `mcp.add_provider(GenerativeUI())` which registers `generate_prefab_ui` and `search_prefab_components` tools, letting the LLM discover components and write Python code that renders in a Pyodide sandbox. Also exposes the raw data tool, so the model can fetch data and render any UI it chooses.
@@ -469,7 +534,7 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     }
     ```
 -   **Testing locally — browser preview:**
-    FastMCP 3 ships a built-in dev UI that renders Prefab views without needing an LLM host:
+    FastMCP ships a built-in dev UI that renders Prefab views without needing an LLM host:
     ```bash
     fastmcp dev apps examples/09_fastmcp_uiapp/09_population_uiapp_server.py
     ```
@@ -479,12 +544,49 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     Claude Desktop is the easiest way to exercise the full flow (LLM fetches data, optionally searches components, generates and invokes a Prefab UI). Prefer the `uv --directory` config pattern shown above over `fastmcp install claude-desktop` — the installer defaults to `uv run --with fastmcp ...` which creates an ephemeral env without `prefab-ui`, so any UI App server will crash at import with `ModuleNotFoundError: No module named 'prefab_ui'`. Using `--directory` resolves against this project's `pyproject.toml` / `uv.lock` where `prefab-ui` is already a dependency.
 
 -   **Notes:**
-    -   Requires FastMCP 3.x. Earlier 2.x releases do not support `@mcp.tool(app=True)`, `FastMCPApp`, or `GenerativeUI`.
+    -   Requires FastMCP 4.x (this repo pins `fastmcp>=4.0.3,<5`). `prefab-ui` is pinned to `>=0.20.2,<0.21` deliberately: Prefab is pre-1.0 and ships breaking changes between minor versions.
+    -   Chart arguments use snake_case (`x_axis=`). The camelCase form (`xAxis=`) still works as a Pydantic alias, but the examples now use one style throughout.
     -   The generative server needs **Deno** on `PATH` for server-side Pyodide validation (auto-installed on first use). The sandbox only includes the Python standard library and Prefab components — no NumPy/pandas/requests.
     -   Host must support MCP UI resources for rendering (e.g. Claude Desktop with apps preview enabled).
     -   `FastMCPApp` form submissions do not auto-forward input values to backend tools. Wire them explicitly: `CallTool(fn, arguments={"country": Rx("form_country")})`.
 
+### 10. Elicitation & Multi Round-Trip Requests (MRTR)
+
+-   **Directory:** `examples/10_elicitation_mrtr/`
+-   **Server File:** `10_elicitation_mrtr_server.py`
+-   **Client File:** `10_mrtr_client.py`
+-   **Description:** The pattern that replaces server-initiated requests in the 2026-07-28 revision. The server asks the caller which municipality to fetch police incidents for - but because MCP is now stateless, it cannot interrupt its own response to ask. Instead it *returns* the question as the result of the call, and the client re-issues the same call with the answer attached. Builds on example 3, so it needs no credentials.
+-   **Dependencies:** `requests` (already in `pyproject.toml`)
+-   **The shape of it:**
+    ```
+    leg 1   client -> tools/call                     (no answer yet)
+            server -> InputRequiredResult(...)       "which municipality?"
+    leg 2   client -> tools/call + inputResponses    (same call, plus answers)
+            server -> the real result
+    ```
+-   **Run it:**
+    ```bash
+    # Interactive - the client prompts you for the answer:
+    uv run examples/10_elicitation_mrtr/10_mrtr_client.py
+
+    # Or answer up front:
+    MRTR_ANSWER=Bergen  uv run examples/10_elicitation_mrtr/10_mrtr_client.py
+    MRTR_ANSWER=decline uv run examples/10_elicitation_mrtr/10_mrtr_client.py
+    ```
+    The client spawns the server itself, so you only need one terminal. Server diagnostics go to stderr and are interleaved with the client's output - watch for `[leg 1]` and `[leg 2]`.
+
+-   **Teaching notes:**
+    -   **The tool body runs once per leg, from the top.** Nothing is suspended and resumed. The example logs each leg so students can see one `call_tool()` produce two executions. Anything expensive or irreversible must happen *after* the answer arrives, never before the ask.
+    -   **The original arguments are unchanged on leg 2.** `municipality` is still `None`; the answer arrives in `ctx.input_responses`, keyed by the name the server chose in `input_requests`.
+    -   **`request_state` is the only continuity between legs**, and it travels through the client. Never put a secret in it, and validate what comes back.
+    -   **Handle all three actions.** A user can `accept`, `decline` or `cancel`. The example returns a different message for each; try `MRTR_ANSWER=decline`.
+    -   **Bound the rounds.** `Client(..., input_required_max_rounds=3)` stops a server that always asks and a client that always answers from looping forever.
+    -   **The client must opt in.** A client with no `elicitation_handler` cannot complete the second leg. Host support varies - verify with your host before demoing.
+    -   **Contrast with the old way:** calling `ctx.elicit()` on a modern connection raises `elicitation via server-initiated requests is unavailable on 2026-07-28 connections`. It still works under `Client(..., mode="legacy")`. Running both back to back is the fastest way to explain why MRTR exists.
+    -   Sampling and Roots are deprecated (SEP-2577) and are deliberately **not** demonstrated here. Elicitation is not deprecated - it is the one of the three that survives, now expressed through MRTR.
+
+---
+
 ---
 
 This `README.md` should provide a good overview of your project and how to use the examples. Remember to replace `/path/to/your/project/gritai-mcp-server-course` in the Claude configurations with the actual path on your system.
-

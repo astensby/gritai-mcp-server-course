@@ -1,7 +1,9 @@
-import os
 import json
+import os
+import sys
+
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from azure.search.documents import SearchClient
 from azure.core.credentials import AzureKeyCredential
 from azure.identity import DefaultAzureCredential
@@ -9,7 +11,7 @@ from azure.core.exceptions import AzureError
 
 load_dotenv()
 
-mcp = FastMCP("azure-ai-search", dependencies=["azure-search-documents", "azure-identity"])
+mcp = FastMCP("azure-ai-search")
 
 @mcp.tool()
 def search_azure_index(query: str, top_k: int = 5) -> str:
@@ -82,8 +84,14 @@ if __name__ == "__main__":
     required_vars = ["AZURE_SEARCH_ENDPOINT", "AZURE_SEARCH_INDEX"]
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
     if missing_vars:
-        print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
-        print("Please set them before running the server.")
-        print("\nOptional: Set AZURE_SEARCH_KEY for API key auth, or configure Azure CLI for DefaultAzureCredential.")
+        # stderr, not stdout - stdout is the stdio transport. Then stop.
+        print(
+            f"Error: Missing required environment variables: {', '.join(missing_vars)}\n"
+            "Please set them before running the server.\n"
+            "Optional: Set AZURE_SEARCH_KEY for API key auth, or configure Azure CLI "
+            "for DefaultAzureCredential.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-    mcp.run(transport='stdio')
+    mcp.run(transport="stdio")

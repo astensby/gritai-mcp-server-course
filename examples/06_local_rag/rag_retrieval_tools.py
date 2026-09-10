@@ -1,18 +1,34 @@
-import os
 import json
 import logging
-from typing import List, Dict, Any
+import os
+import sys
+from typing import Any, Dict, List
+
 import boto3
 import psycopg2
+from dotenv import load_dotenv
 from psycopg2 import sql
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Read .env before the module-level configuration below runs.
+load_dotenv()
+
+# stdout belongs to the stdio transport - always log to stderr.
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stderr,
+)
 
 AWS_REGION_NAME = os.environ.get("AWS_REGION", "eu-west-1")
 AWS_EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
-AWS_PROFILE_NAME = "my-mcp-server-profile"
+# Use the SSO profile from AWS_PROFILE when set, otherwise fall back to the
+# default credential chain (env vars, instance role, container role).
+AWS_PROFILE_NAME = os.environ.get("AWS_PROFILE")
 try:
-    session = boto3.Session(profile_name=AWS_PROFILE_NAME, region_name=AWS_REGION_NAME)
+    if AWS_PROFILE_NAME:
+        session = boto3.Session(profile_name=AWS_PROFILE_NAME, region_name=AWS_REGION_NAME)
+    else:
+        session = boto3.Session(region_name=AWS_REGION_NAME)
     bedrock_runtime = session.client(service_name='bedrock-runtime')
     aws_available = True
     logging.info(f"Successfully initialized AWS Bedrock runtime client in region '{AWS_REGION_NAME}'.")

@@ -62,7 +62,7 @@ def population_viewer(country: str = "Norway") -> PrefabApp:
         BarChart(
             data=Rx("history"),
             series=[ChartSeries(data_key="population", label="Population")],
-            xAxis="year",
+            x_axis="year",
             height=320,
         )
 

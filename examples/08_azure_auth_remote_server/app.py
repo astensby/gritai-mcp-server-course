@@ -44,16 +44,23 @@ if os.getenv("ENABLE_OIDC", "1") == "1":
         required_scopes = [s for s in scopes_env.split() if s] if scopes_env else default_required_scopes
 
         try:
-            # The AzureProvider handles Azure's token format and validation
+            # AzureProvider handles Azure's token format and validation.
+            #
+            # Why a proxy at all: Azure has never supported OAuth Dynamic Client
+            # Registration, so FastMCP fronts it with an OAuth Proxy. As of the
+            # 2026-07-28 revision the spec deprecates DCR anyway, in favour of
+            # Client ID Metadata Documents - which FastMCP 4 serves by default
+            # (AzureProvider(enable_cimd=True) is the default, shown here for
+            # teaching purposes).
             auth_server_provider = AzureProvider(
-                client_id=os.environ["OIDC_CLIENT_ID"], # Your Azure App Client ID
-                client_secret=os.environ["OIDC_CLIENT_SECRET"], # Your Azure App Client Secret
-                tenant_id=os.environ["AZURE_TENANT_ID"], # Your Azure Tenant ID (REQUIRED)
-                base_url=public_base_url,                   # Must match your App registration                
-                # redirect_path="/auth/callback"                  # Default value, customize if needed
-                # redirect_path=redirect_path,
-                #allowed_client_redirect_uris=allowed_redirects,
+                client_id=os.environ["OIDC_CLIENT_ID"],          # Azure App Client ID
+                client_secret=os.environ["OIDC_CLIENT_SECRET"],  # Azure App Client Secret
+                tenant_id=os.environ["AZURE_TENANT_ID"],         # Azure Tenant ID (REQUIRED)
+                base_url=public_base_url,                        # Must match your App registration
+                redirect_path=redirect_path,                     # Defaults to /auth/callback
+                allowed_client_redirect_uris=allowed_redirects,  # Loopback redirects for local clients
                 required_scopes=required_scopes,
+                enable_cimd=True,                                # Client ID Metadata Documents
             )
 
         except Exception as e:

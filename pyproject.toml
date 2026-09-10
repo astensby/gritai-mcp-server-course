@@ -1,17 +1,22 @@
 [project]
 name = "gritai-mcp-server-course"
-version = "0.1.0"
-description = "Demo project of MCP servers"
+version = "0.2.0"
+description = "Demo project of MCP servers (FastMCP 4 / MCP protocol 2026-07-28)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "azure-identity>=1.25.1",
-    "azure-search-documents>=11.6.0",
-    "fastmcp>=3.0.0",
-    "mcp[cli]>=1.6.0",
-    "psycopg2>=2.9.10",
-    "psycopg2-binary>=2.9.10",
-    "websockets>=12.0",
-    "uvicorn>=0.35",
-    "prefab-ui>=0.19.1",
+    # Core: FastMCP 4 pulls in the MCP Python SDK 2.x transitively.
+    # Upper bounds are deliberate - this repo is teaching material and must
+    # resolve to the same versions for every student. Keep uv.lock committed.
+    "fastmcp>=4.0.3,<5",
+    # Prefab is pre-1.0 and ships breaking changes between minors (example 09).
+    "prefab-ui>=0.20.2,<0.21",
+    # Used directly by the examples - previously imported but never declared.
+    "boto3>=1.35",              # examples 05, 06
+    "requests>=2.32",           # examples 03, 04
+    "python-dotenv>=1.1",       # examples 05, 07, 08
+    "psycopg2-binary>=2.9.10",  # example 06
+    "azure-identity>=1.25.1",   # examples 07, 08
+    "azure-search-documents>=11.6.0",  # example 07
+    "uvicorn>=0.35",            # ASGI host for examples 01-remote and 08
 ]
