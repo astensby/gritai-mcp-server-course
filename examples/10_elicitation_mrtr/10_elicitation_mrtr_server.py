@@ -19,8 +19,10 @@ Nothing is suspended and resumed. Watch the [leg N] lines on stderr when you
 run this - the body executes twice for one client-side call_tool().
 
 Run it:
-    fastmcp dev examples/10_elicitation_mrtr/10_elicitation_mrtr_server.py
     python examples/10_elicitation_mrtr/10_mrtr_client.py
+
+Or in the Inspector, which needs the modern protocol era for MRTR:
+    npx @modelcontextprotocol/inspector@2.13.0 --protocol-era modern fastmcp run examples/10_elicitation_mrtr/10_elicitation_mrtr_server.py
 """
 
 import logging

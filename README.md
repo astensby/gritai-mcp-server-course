@@ -73,7 +73,7 @@ Full changelog: https://modelcontextprotocol.io/specification/2026-07-28/changel
 ## General Setup
 
 1.  **Clone the repository (if you haven't already).**
-2.  **Ensure Python and `uv` are installed.**
+2.  **Ensure Python and `uv` are installed.** You also need **Node.js 22.19 or newer** for the MCP Inspector.
     ```bash
     uv venv
     source .venv/bin/activate    
@@ -84,7 +84,7 @@ Make sure uv is in your system PATH, or replace "command": "uv" with the full p
     ```bash
     uv sync
     ```
-    This installs the exact versions in the committed `uv.lock` (FastMCP 4.0.3, MCP SDK 2.2.0, Prefab 0.20.2) - everyone in the room gets the same environment. Do not use `uv add` for setup; it will resolve newer versions than the course was tested against.
+    This installs the exact versions in the committed `uv.lock` (FastMCP 4.0.10, MCP SDK 2.3.0, Prefab 0.20.2) - everyone in the room gets the same environment. Do not use `uv add` for setup; it will resolve newer versions than the course was tested against.
 
 Protocol documentation: https://modelcontextprotocol.io/introduction
 FastMCP documentation: https://gofastmcp.com
@@ -146,15 +146,19 @@ aws configure sso is a one‑time wizard; afterwards only aws sso login is neede
 
 ## Running an Example Server
 
-You can run any example server with the MCP Inspector directly using `fastmcp dev <servername.py>` from the `gritai-mcp-server-course` directory. For example, to run the motivational quotes server:
+You can run any example server with the MCP Inspector from the `gritai-mcp-server-course` directory, with the virtual environment activated. For example, to run the motivational quotes server:
 
 ```bash
-fastmcp dev examples/01_motivational_quotes/01_motivational_quotes_server.py
+npx @modelcontextprotocol/inspector@2.13.0 --protocol-era modern fastmcp run examples/01_motivational_quotes/01_motivational_quotes_server.py
 ```
 
-(The old `mcp dev` command came from the `mcp[cli]` package. This course now uses the `fastmcp` CLI throughout - `fastmcp dev`, `fastmcp run`, `fastmcp inspect`, `fastmcp install`.)
+The version is pinned so everyone in the room runs the same Inspector. `--protocol-era modern` makes it speak the 2026-07-28 protocol this course teaches. Without that flag it connects as 2025-11-25, and example 10's elicitation fails with error -32602.
 
-This will allow you to open the MCP Inspector at http://127.0.0.1:6274 🚀
+`fastmcp dev inspector <servername.py> --inspector-version 2.13.0` is a shorter launcher, but it has no protocol-era option, so it always connects as 2025-11-25. Example 10 does not work with it.
+
+(The old `mcp dev` command came from the `mcp[cli]` package. This course now uses the `fastmcp` CLI throughout - `fastmcp dev inspector`, `fastmcp dev apps`, `fastmcp run`, `fastmcp inspect`, `fastmcp install`.)
+
+Open the http://127.0.0.1:6274 address it prints, including its access token, then switch the server's toggle on to connect 🚀
 
 ## Verifying every server at once
 
@@ -166,7 +170,7 @@ Starts each server for real and drives it through an MCP client: lists tools, re
 
 Servers needing live credentials (04 Alpha Vantage, 05 Bedrock, 06 pgvector, 07 Azure Search) are only verified up to the point where the credential is needed - they must start and register their tools. Their retrieval path is yours to test against real credentials.
 
-Run this after any dependency bump; it is what catches a protocol or FastMCP change breaking an example.
+Run this after any dependency bump; it is what catches a protocol or FastMCP change breaking an example. Create your `.env` first (step 5 above): without it, examples 05 and 07 exit at startup and show as failures. The test does not exercise the Inspector or the `fastmcp dev apps` preview, so check those by hand after a bump.
 
 ## MCP Client Examples
 
@@ -214,7 +218,7 @@ MCP_TOOL=echo_tool MCP_TOOL_ARGS='{"text": "Hello, world!"}' uv run simple_clien
 
 ## Integrating with Claude (or other MCP Host applications)
 
-To use these example servers with an AI assistant like Claude or Cursor, that implements the MCP Client, you'll need to add a configuration to your LLM's tool settings. The `command` will typically be `uv`, and the `args` will point to the `uv run` command or `mcp run` for the specific server script.
+To use these example servers with an AI assistant like Claude or Cursor, that implements the MCP Client, you'll need to add a configuration to your LLM's tool settings. The `command` will typically be `uv`, and the `args` will point to the `uv run` command or `fastmcp run` for the specific server script.
 
 **Important:** In the Claude configurations below, you **MUST** replace `"/path/to/your/project/gritai-mcp-server-course"` with the actual absolute path to the `gritai-mcp-server-course` directory on your system where `uv` will be executed.
 
@@ -234,16 +238,10 @@ As an example (applicable to all the below server examples):
       "local-rag-server": {
       "command": "uv",
       "args": [
+        "--directory",
+        "/path/to/your/project/gritai-mcp-server-course",
         "run",
-        "--with",
-        "fastmcp",
-        "--with",
-        "psycopg2-binary",
-        "--with",
-        "boto3",
-        "fastmcp",
-        "run",
-        "/path/to/your/project/gritai-mcp-server-course/examples/06_local_rag/06_local_rag_server.py"
+        "examples/06_local_rag/06_local_rag_server.py"
       ],
       "env": {
         <variables goes here...>
@@ -498,7 +496,7 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     cd examples/08_azure_auth_remote_server
     uvicorn app:app --host 0.0.0.0 --port 8000
 
-    # Using Gunicorn (production)
+    # Using Gunicorn (production; not a course dependency, so install it in your deployment)
     gunicorn examples.08_azure_auth_remote_server.app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
     ```
 -   **Client Configuration:** This server exposes an HTTP endpoint at `/mcp`. Clients should connect to `https://your-server-url.com/mcp` with OAuth authentication. See `simple_client.py` and `simple_client_remote.py` for client examples.
@@ -515,7 +513,7 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
 
 -   **Directory:** `examples/09_fastmcp_uiapp/`
 -   **Description:** Four servers exploring FastMCP 4's UI App capabilities using [Prefab UI](https://gofastmcp.com/apps/prefab). All four share a common "10 years of random population data" theme and progressively demonstrate the UI App surface — from a plain tool, to a static chart, to an interactive form-driven app, to fully generative UI.
--   **Dependencies:** `fastmcp>=4.0.3`, `prefab-ui` (already in `pyproject.toml`; just run `uv sync`)
+-   **Dependencies:** `fastmcp==4.0.10`, `prefab-ui` (already in `pyproject.toml`; just run `uv sync`)
 -   **Servers:**
     -   **`09_population_server.py`** — Plain FastMCP tool returning 10 years of randomized population data. Baseline for comparison with the UI variants.
     -   **`09_population_uiapp_server.py`** — Same data, rendered as a static Prefab `BarChart` via `@mcp.tool(app=True)`. Returns a `ToolResult` so the model also receives a text summary alongside the UI.
@@ -538,13 +536,13 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     ```bash
     fastmcp dev apps examples/09_fastmcp_uiapp/09_population_uiapp_server.py
     ```
-    Opens a tool picker at `http://localhost:8080` where you can invoke the tool directly and see the rendered UI. Works for all four servers; for `09_population_generative_server.py` you'll need to paste Python code into the `code` argument yourself (useful for verifying the sandbox + renderer, but not the full LLM-driven flow).
+    Opens a tool picker at `http://localhost:8080` where you can invoke the tool directly and see the rendered UI. Works for all four servers; for `09_population_generative_server.py` you'll need to paste Python code into the `code` argument yourself (useful for verifying the sandbox + renderer, but not the full LLM-driven flow). In `09_population_fastmcpapp_server.py` the chart starts with empty axes in this preview; press **Regenerate** to fill it.
 
 -   **Testing with Claude Desktop:**
     Claude Desktop is the easiest way to exercise the full flow (LLM fetches data, optionally searches components, generates and invokes a Prefab UI). Prefer the `uv --directory` config pattern shown above over `fastmcp install claude-desktop` — the installer defaults to `uv run --with fastmcp ...` which creates an ephemeral env without `prefab-ui`, so any UI App server will crash at import with `ModuleNotFoundError: No module named 'prefab_ui'`. Using `--directory` resolves against this project's `pyproject.toml` / `uv.lock` where `prefab-ui` is already a dependency.
 
 -   **Notes:**
-    -   Requires FastMCP 4.x (this repo pins `fastmcp>=4.0.3,<5`). `prefab-ui` is pinned to `>=0.20.2,<0.21` deliberately: Prefab is pre-1.0 and ships breaking changes between minor versions.
+    -   This repo pins `fastmcp==4.0.10` because from 4.0.11 on, including all of 4.1.x, the `fastmcp dev apps` preview stays on "Launching…": its sandboxed frame never sends the session cookie that those versions require. `prefab-ui` is pinned to `>=0.20.2,<0.21` deliberately: Prefab is pre-1.0 and ships breaking changes between minor versions.
     -   Chart arguments use snake_case (`x_axis=`). The camelCase form (`xAxis=`) still works as a Pydantic alias, but the examples now use one style throughout.
     -   The generative server needs **Deno** on `PATH` for server-side Pyodide validation (auto-installed on first use). The sandbox only includes the Python standard library and Prefab components — no NumPy/pandas/requests.
     -   Host must support MCP UI resources for rendering (e.g. Claude Desktop with apps preview enabled).
@@ -574,6 +572,12 @@ In order to gracefully handle SSO token expiry, you will need to add logic to ca
     MRTR_ANSWER=decline uv run examples/10_elicitation_mrtr/10_mrtr_client.py
     ```
     The client spawns the server itself, so you only need one terminal. Server diagnostics go to stderr and are interleaved with the client's output - watch for `[leg 1]` and `[leg 2]`.
+
+    To see the same round trip in the Inspector, with the virtual environment activated:
+    ```bash
+    npx @modelcontextprotocol/inspector@2.13.0 --protocol-era modern fastmcp run examples/10_elicitation_mrtr/10_elicitation_mrtr_server.py
+    ```
+    Call `incidents_by_municipality` with no municipality and an elicitation dialog appears. Leave out `--protocol-era modern` and the call fails with -32602, because MRTR only exists at 2026-07-28. That failure is a quick way to show the difference between the two protocol eras.
 
 -   **Teaching notes:**
     -   **The tool body runs once per leg, from the top.** Nothing is suspended and resumed. The example logs each leg so students can see one `call_tool()` produce two executions. Anything expensive or irreversible must happen *after* the answer arrives, never before the ask.

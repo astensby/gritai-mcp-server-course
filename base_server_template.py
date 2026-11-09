@@ -1,6 +1,6 @@
 """Minimal FastMCP 4 server - the starting point for every example in this course.
 
-Run it:  fastmcp dev base_server_template.py
+Run it:  fastmcp dev inspector base_server_template.py --inspector-version 2.13.0
 """
 
 from fastmcp import FastMCP

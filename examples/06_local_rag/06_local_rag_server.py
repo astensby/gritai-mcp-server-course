@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from fastmcp import FastMCP
 
 # Plain import, not a relative one: this file is run as a script
-# (fastmcp dev / uv run / Claude Desktop), where there is no parent package.
+# (fastmcp run / uv run / Claude Desktop), where there is no parent package.
 from rag_retrieval_tools import answer_query
 
 mcp = FastMCP("local-rag-server")
